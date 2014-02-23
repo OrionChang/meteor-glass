@@ -2,6 +2,9 @@ TIMELINE_API = "https://www.googleapis.com/mirror/v1/timeline"
 SUB_API = "https://www.googleapis.com/mirror/v1/subscriptions"
 
 
+SUB_CALLBACK_URL = "https://myglass.ngrok.com/subscriptionCallback"
+
+
 Accounts.loginServiceConfiguration.insert
   service:    "google"
   clientId:   "636613077149-p1t1smf04h8ffmgqd9hp7funt55nh0rl.apps.googleusercontent.com"
@@ -38,9 +41,9 @@ subscribeTimelineItemUpdate = (token) ->
     
     data =
         collection: "timeline"
-        userToken: "33332211"
+        userToken: "test"
         operation: []
-        callbackUrl: "https://myglass.ngrok.com/subscriptionCallback"
+        callbackUrl: SUB_CALLBACK_URL
         
     options = getOptions(token, data)
     postToAPI(SUB_API, options)   

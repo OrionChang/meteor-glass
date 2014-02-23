@@ -8,3 +8,9 @@ autopublish
 insecure
 preserve-inputs
 coffeescript
+accounts-google
+accounts-ui
+accounts-base
+npm
+http
+iron-router
