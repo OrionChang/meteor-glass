@@ -13,5 +13,5 @@ Using ngrok to forward callback to localhost during development
 
     ./ngrok -authtoken ****** -subdomain xxxxx 3000
 
-You need to change callback url in server/mirror.coffee accordingly 
+You need to change callback url in server/mirror.coffee accordingly  
 For more information, visit https://ngrok.com
