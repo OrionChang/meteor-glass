@@ -5,10 +5,10 @@ SUB_API = "https://www.googleapis.com/mirror/v1/subscriptions"
 SUB_CALLBACK_URL = "https://myglass.ngrok.com/subscriptionCallback"
 
 
-Accounts.loginServiceConfiguration.insert
-  service:    "google"
-  clientId:   "636613077149-p1t1smf04h8ffmgqd9hp7funt55nh0rl.apps.googleusercontent.com"
-  secret:     "Et4VxVYtqzMgqDtO2bfgoI4L"
+ServiceConfiguration.configurations.insert
+    service:    "google"
+    clientId:   "636613077149-p1t1smf04h8ffmgqd9hp7funt55nh0rl.apps.googleusercontent.com"
+    secret:     "Et4VxVYtqzMgqDtO2bfgoI4L"
 
 
 getOptions = (token, data) ->
