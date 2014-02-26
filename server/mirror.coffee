@@ -13,17 +13,28 @@ ServiceConfiguration.configurations.insert
 
 getOptions = (token, data) ->
     options =
-        data: data
         headers:
             "Authorization": "Bearer " + token
-        
+    options["data"] = data if data?
+    options
+
+    
  
 postToAPI = (url, options) ->
     result = HTTP.call "POST", url, options
     console.log result.statusCode
+    result
+
+getFromAPI = (url, options) ->
+    result = HTTP.call "GET", url, options
+    console.log result.statusCode
+    result
  
     
-sendTimelineItem = (token) ->  
+sendTimelineItem = (user) ->  
+
+    token = user.services.google.accessToken
+
     data = 
         text: "Changed Text"
         menuItems: [
@@ -37,37 +48,46 @@ sendTimelineItem = (token) ->
            
      
  
-subscribeTimelineItemUpdate = (token) ->
+subscribeTimelineItemUpdate = (user) ->
+
+    token = user.services.google.accessToken
     
     data =
         collection: "timeline"
-        userToken: "test"
+        userToken: user._id
         operation: []
         callbackUrl: SUB_CALLBACK_URL
         
     options = getOptions(token, data)
     postToAPI(SUB_API, options)   
-    
-    
-    
+
+findUserById = (id) ->
+    Meteor.users.findOne({_id: id})
+
+getTimelineItem = (user, itemId) ->
+    token = user.services.google.accessToken
+    options = getOptions(token)
+    url = TIMELINE_API + "/#{itemId}"
+    getFromAPI(TIMELINE_API + "/#{itemId}", options)
+
+handleSubscriptionCallback = (params) ->
+    user = findUserById(params.userToken)
+    item = getTimelineItem(user, params.itemId)
+    console.log "item: ", item.data.text
+
 Meteor.methods
     initMirrorApi: (user) ->
         
-        token = user.services.google.accessToken
+        sendTimelineItem(user)
         
-        sendTimelineItem(token)
-        
-        subscribeTimelineItemUpdate(token)
+        subscribeTimelineItemUpdate(user)
                      
         
         
 Router.map () ->
-
-
     this.route 'serverFile', 
         where: 'server',    
         path: '/subscriptionCallback',
 
         action: () ->
-            console.log "what!!!!!"
-            console.log(this.request.body.itemId)
+            handleSubscriptionCallback(this.request.body)
