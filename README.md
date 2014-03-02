@@ -1,10 +1,11 @@
 
 1. Insert an item into user's timeline.
 2. Subscribe to user's timeline.
+3. Get reply message from user.
 
 TODO:
+4. 
 
-3. Get reply message from user.
 
 
 
