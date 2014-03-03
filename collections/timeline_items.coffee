@@ -1,0 +1,1 @@
+@TimelineItems = new Meteor.Collection "timeline_items" 

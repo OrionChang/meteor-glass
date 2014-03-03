@@ -1,28 +1,27 @@
-if ServiceConfiguration.configurations.find(service: "google").count() != 0
-    ServiceConfiguration.configurations.remove(service: "google")
-    ServiceConfiguration.configurations.insert
-        service:    "google"
-        clientId:   "636613077149-p1t1smf04h8ffmgqd9hp7funt55nh0rl.apps.googleusercontent.com"
-        secret:     "Et4VxVYtqzMgqDtO2bfgoI4L"
+
+@Global = 
+
+    getConfig: () ->
+        ServiceConfiguration.configurations.findOne service: "google"
+
+    findUserById: (userId) ->
+        Meteor.users.findOne({_id: userId})
 
 
-getConfig = () ->
-    ServiceConfiguration.configurations.findOne service: "google"
-
-findUserById = (userId) ->
-    Meteor.users.findOne({_id: userId})
 
 
+    
 handleSubscriptionCallback = (params) ->
-    user = findUserById(params.userToken)
 
-    client = new mirror(user)
+    user = Global.findUserById(params.userToken)
+
+    client = new Mirror(user)
 
     # console.log params
 
-    item = client.getTimelineItem(params.itemId)
-
+    client.getTimelineItem(params.itemId)
     # console.log "item: ", item.data.text
+
 
 Router.map () ->
     this.route 'serverFile', 
@@ -32,7 +31,7 @@ Router.map () ->
         action: () ->
             handleSubscriptionCallback(this.request.body)
 
-mirror = (user) ->
+@Mirror = (user) ->
     TIMELINE_API = "https://www.googleapis.com/mirror/v1/timeline"
     SUB_API = "https://www.googleapis.com/mirror/v1/subscriptions"
     REFRESH_TOKEN_API = "https://accounts.google.com/o/oauth2/token"
@@ -45,6 +44,7 @@ mirror = (user) ->
     options = {}
 
     this.init = () ->
+        user = Global.findUserById(user._id)
         token = user.services.google.accessToken    
 
 
@@ -60,34 +60,22 @@ mirror = (user) ->
         options
     
     postToAPI = (url, data) ->
-        result = HTTP.call "POST", url, getHeaders(data)
-        if result.statusCode isnt 200
-            console.log "postToAPI --- fail"
-        result
+        result = handleResult(HTTP.call("POST", url, getHeaders(data)), "postFromAPI", true)
+        if result then result else false
+
+    getFromAPI = (url, data) ->
+        result = handleResult(HTTP.call("GET", url, getHeaders(data)), "getFromAPI", true)
+        if result then result else false
 
     postToAPIWithParams = (url, params) ->
         options = params: params
-
-        result = HTTP.call "POST", url, options
-
-        if result.statusCode isnt 200
-            console.log "postToAPIWithParams --- fail"
-        result
+        result = handleResult(HTTP.call("POST", url, options), "postToAPIWithParams", true)
+        if result then result else false
 
     getFromAPIWithParams = (url, params) ->
         options = params: params
-
-        result = HTTP.call "GET", url, options
-
-        if result.statusCode isnt 200
-            console.log "getFromAPIWithParams --- fail"
-        result
-
-    getFromAPI = (url, data) ->
-        result = HTTP.call "GET", url, getHeaders(data)
-        if result.statusCode isnt 200
-            console.log "getFromAPI --- fail"
-        result
+        result = handleResult(HTTP.call("GET", url, options), "getFromAPIWithParams", true)
+        if result then result else false
 
     updateUserTokenInDB = (data) ->
         token = data.access_token
@@ -114,25 +102,23 @@ mirror = (user) ->
         # TODO Change it to false
 
     revokeToken = () ->
-        result = getFromAPIWithParams REVOKE_TOKEN_API, token: token
-        if result.statusCode isnt 200
-            console.log "revoke token --- fail"
-        else
+        result = handleResult(getFromAPIWithParams(REVOKE_TOKEN_API, token: token), "revokeToken")
+        if result
             revokeTokenInDB()
             throw new Meteor.Error(500, "user is revoked")
         # console.log result
         
 
     refreshToken = () ->
-        # console.log findUserById(user._id).services.google
+        # console.log Global.findUserById(user._id).services.google
 
-        refreshToken = findUserById(user._id).services.google.refreshToken
+        refreshToken = Global.findUserById(user._id).services.google.refreshToken
 
         unless refreshToken
             revokeToken() 
             return
 
-        config = getConfig()
+        config = Global.getConfig()
 
         params = 
             refresh_token: refreshToken
@@ -140,43 +126,66 @@ mirror = (user) ->
             client_secret: config.secret
             grant_type: "refresh_token"
 
-        result = postToAPIWithParams REFRESH_TOKEN_API, params
+        result = handleResult(postToAPIWithParams(REFRESH_TOKEN_API, params), "refreshToken")
 
-        if result.statusCode isnt 200
-            console.log "refresh token --- fail"
-        else
-            # console.log result
-
-            # console.log findUserById(user._id).services.google
-
-            # console.log "===================================="
-            updateUserTokenInDB(result.data)
-
-            # console.log findUserById(user._id).services.google
-
+        updateUserTokenInDB(result.data) if result
+        
 
     checkToken = () ->
         expiresDate = new Date user.services.google.expiresAt
         now = new Date
         if expiresDate > now
             # valid
-            console.log "check token --- valid"    
+            console.log "Yeah --- checkToken"    
         else
             # expired
-            console.log "check token --- refresh token"
+            console.log "Error --- checkToken"
             refreshToken()
-        
-        
+   
+    
 
-    # Public
+
+
+    addItemIntoDB = (item) ->
+        item = _.extend item, 
+            # item_type: item_type
+            user_id: user._id
+
+        TimelineItems.insert item
+
+    # getTimelineItemAndAddIntoDB = (itemId) ->
+
+    #     item = getTimelineItem(itemId)
+
+    #     addItemIntoDB item
+
+         
+    handleResult = (result, from, hidden) ->
+        if result.statusCode isnt 200
+            console.log "Error --- ", from unless hidden
+            throw new Meteor.Error result.statusCode, "Error: " + from, result
+            return false
+        else
+            console.log "Yeah --- ", from unless hidden
+        result
+
+
+    # ==================================================================
+    # Public Methods
+    # ==================================================================
+
     sendTimelineItem = (data) ->
         checkToken()
-        postToAPI(TIMELINE_API, data)
+        result = handleResult(postToAPI(TIMELINE_API, data), "sendTimelineItem")
+        
+        addItemIntoDB result.data if result
+             
 
     getTimelineItem = (itemId) ->
         checkToken()
-        url = TIMELINE_API + "/#{itemId}"
-        getFromAPI(url)
+        result = handleResult(getFromAPI(TIMELINE_API + "/#{itemId}"), "getTimelineItem")
+        
+        addItemIntoDB result.data if result
 
     subscribe = (data) ->
         checkToken()
@@ -200,25 +209,6 @@ mirror = (user) ->
         subscribeTimelineItems: subscribeTimelineItems
 
         test: revokeToken
-
-
-Meteor.methods
-    initMirrorApi: (user) ->
-
-
-        client = new mirror(user)
-
-        # data = 
-        #     text: "o test"
-        #     menuItems: [
-        #         {
-        #             "action": "REPLY"
-        #         }
-        #     ]        
-
-        # client.sendTimelineItem(data)
-        
-        client.test()
 
 
 
@@ -291,7 +281,7 @@ Meteor.methods
 #     options = getOptions(token, data)
 #     postToAPI(SUB_API, options)   
 
-# findUserById = (id) ->
+# Global.findUserById = (id) ->
 #     Meteor.users.findOne({_id: id})
 
 # getTimelineItem = (user, itemId) ->
@@ -301,7 +291,7 @@ Meteor.methods
 #     getFromAPI(TIMELINE_API + "/#{itemId}", options)
 
 # handleSubscriptionCallback = (params) ->
-#     user = findUserById(params.userToken)
+#     user = Global.findUserById(params.userToken)
 #     item = getTimelineItem(user, params.itemId)
 #     console.log "item: ", item.data.text
 

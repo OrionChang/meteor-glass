@@ -1,0 +1,44 @@
+<template name="timelineItem">
+	
+	<table class="timelineItem">
+		<tr>
+			<th>
+				id
+			</th>
+
+			<td>
+				{{id}}
+			</td>
+		</tr>	
+		<tr>
+			<th>
+				kind
+			</th>
+
+			<td>
+				{{kind}}
+			</td>
+		</tr>	
+		<tr>
+			<th>
+				text
+			</th>
+
+			<td>
+				{{text}}
+			</td>
+		</tr>	
+
+		{{#if inReplyTo}}
+			<tr>
+				<th>
+					reply to	
+				</th>
+
+				<td>
+					{{inReplyTo}}
+				</td>
+			</tr>		
+		{{/if}}
+	</table>
+</template>
